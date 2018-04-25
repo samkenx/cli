@@ -7,11 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ActiveState/cli/pkg/projectfile"
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/ActiveState/cli/internal/config"
 	"github.com/ActiveState/cli/internal/environment"
+	"github.com/ActiveState/cli/pkg/projectfile"
+	"github.com/hashicorp/hcl"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,9 +47,10 @@ func TestActivate(t *testing.T) {
 	setup(t)
 	project := &projectfile.Project{}
 	dat := strings.TrimSpace(`
-		name: valueForName
-		owner: valueForOwner`)
-	yaml.Unmarshal([]byte(dat), &project)
+		name = "valueForName"
+		owner = "valueForOwner"
+	`)
+	hcl.Unmarshal([]byte(dat), &project)
 	project.Persist()
 
 	fail = Activate()
@@ -65,12 +65,13 @@ func TestActivate(t *testing.T) {
 	setup(t)
 	project = &projectfile.Project{}
 	dat = strings.TrimSpace(`
-		name: valueForName
-		owner: valueForOwner
-		languages:
-		- name: Python
-		version: 2.7.12`)
-	yaml.Unmarshal([]byte(dat), &project)
+		name = "valueForName"
+		owner = "valueForOwner"
+		language "Python" {
+			version = "2.7.12"
+		}
+	`)
+	hcl.Unmarshal([]byte(dat), &project)
 	project.Persist()
 
 	fail = Activate()
@@ -89,8 +90,7 @@ func TestActivateFailureUnknownLanguage(t *testing.T) {
 	setup(t)
 
 	project := projectfile.Get()
-	language := projectfile.Language{Name: "foo"}
-	project.Languages = append(project.Languages, language)
+	project.Languages["foo"] = projectfile.Language{}
 	project.Persist()
 
 	err := Activate()

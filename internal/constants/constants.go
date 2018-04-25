@@ -19,15 +19,15 @@ const ConfigNamespace = "activestate"
 const ConfigName = "activestate"
 
 // ConfigFileName is effectively the same as ConfigName, but includes our preferred extension
-const ConfigFileName = ConfigName + ".yaml"
+const ConfigFileName = ConfigName + ".hcl"
 
 // ConfigFileType is our preferred file type for our config file, this must match ConfigFileName
-const ConfigFileType = "yaml"
+const ConfigFileType = "hcl"
 
 // EnvironmentEnvVarName is the name of the environment variable that specifies the current environment (dev, qa, prod, etc.)
 const EnvironmentEnvVarName = "ACTIVESTATE_ENVIRONMENT"
 
-// ProjectEnvVarName is the name of the environment variable that specifies the path of the activestate.yaml config file.
+// ProjectEnvVarName is the name of the environment variable that specifies the path of the activestate.hcl config file.
 const ProjectEnvVarName = "ACTIVESTATE_PROJECT"
 
 // APIUpdateURL is the URL for our update server

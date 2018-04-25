@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl"
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/ActiveState/cli/internal/artifact"
 	"github.com/ActiveState/cli/internal/config"
@@ -140,10 +140,11 @@ func TestNamespace(t *testing.T) {
 
 	project := projectfile.Project{}
 	dat := strings.TrimSpace(`
-name: Bar
-owner: Foo`)
+		name = "Bar"
+		owner = "Foo"
+	`)
 
-	err = yaml.Unmarshal([]byte(dat), &project)
+	err = hcl.Unmarshal([]byte(dat), &project)
 	assert.NoError(t, err, "Should create project struct")
 	project.SetPath(filepath.Join(root, "foo"))
 	project.Persist()
@@ -153,11 +154,12 @@ owner: Foo`)
 
 	project = projectfile.Project{}
 	dat = strings.TrimSpace(`
-name: Bar
-owner: Foo
-namespace: foo.bar/foo/bar`)
+		name = "Bar"
+		owner = "Foo"
+		namespace = "foo.bar/foo/bar"
+	`)
 
-	err = yaml.Unmarshal([]byte(dat), &project)
+	err = hcl.Unmarshal([]byte(dat), &project)
 	assert.NoError(t, err, "Should create project struct")
 	project.Persist()
 
@@ -166,10 +168,11 @@ namespace: foo.bar/foo/bar`)
 
 	project = projectfile.Project{}
 	dat = strings.TrimSpace(`
-name: Bar
-owner: Foo`)
+		name = "Bar"
+		owner = "Foo"
+	`)
 
-	err = yaml.Unmarshal([]byte(dat), &project)
+	err = hcl.Unmarshal([]byte(dat), &project)
 	assert.NoError(t, err, "Should create project struct")
 	project.Persist()
 

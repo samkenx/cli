@@ -9,8 +9,8 @@ import (
 
 	"github.com/ActiveState/cli/internal/environment"
 	"github.com/ActiveState/cli/pkg/projectfile"
+	"github.com/hashicorp/hcl"
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v2"
 )
 
 var testhooks = []projectfile.Hook{
@@ -62,15 +62,18 @@ func TestMapHooks(t *testing.T) {
 func TestGetEffectiveHooks(t *testing.T) {
 	project := projectfile.Project{}
 	dat := strings.TrimSpace(`
-name: name
-owner: owner
-hooks:
- - name: ACTIVATE
-   value: echo Hello World!`)
+		name = "name"
+		owner = "owner"
+		hook {
+			 name = "ACTIVATE"
+			 value = "echo Hello World!"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
+	err := hcl.Unmarshal([]byte(dat), &project)
+	project.FixUnmarshalledHooks() // temporary workaround for HCL bug
 	project.Persist()
-	assert.NoError(t, err, "YAML unmarshalled")
+	assert.NoError(t, err, "HCL unmarshalled")
 
 	hooks := GetEffectiveHooks("ACTIVATE")
 
@@ -79,18 +82,35 @@ hooks:
 
 func TestGetEffectiveHooksWithConstrained(t *testing.T) {
 	project := projectfile.Project{}
+	// Cannot use `hook { ... }` syntax due to HCL bug.
+	// Workaround is to use equivalent `hook = [{ ... }]` syntax.
+	//dat := strings.TrimSpace(`
+	//	name = "name"
+	//	owner = "owner"
+	//	hook {
+	//			name = "ACTIVATE"
+	//			value = "echo Hello World"
+	//			constraint {
+	//					platform = "foobar"
+	//					environment = "foobar"
+	//			}
+	//	}
+	//`)
 	dat := strings.TrimSpace(`
-name: name
-owner: owner
-hooks:
-  - name: ACTIVATE
-    value: echo Hello World
-    constraints: 
-        platform: foobar
-        environment: foobar`)
+		name = "name"
+		owner = "owner"
+		hook = [{
+			name = "ACTIVATE"
+			value = "echo Hello World"
+			constraint {
+				platform = "foobar"
+				environment = "foobar"
+			}
+		}]
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
-	assert.NoError(t, err, "YAML unmarshalled")
+	err := hcl.Unmarshal([]byte(dat), &project)
+	assert.NoError(t, err, "HCL unmarshalled")
 	project.Persist()
 
 	hooks := GetEffectiveHooks("ACTIVATE")
@@ -107,16 +127,18 @@ func TestRunHook(t *testing.T) {
 		cmd = "cmd /c echo . > " + cmd
 	}
 
-	dat := `
-name: name
-owner: owner
-hooks:
- - name: ACTIVATE
-   value: ` + cmd + touch
-	dat = strings.TrimSpace(dat)
+	dat := strings.TrimSpace(`
+		name = "name"
+		owner = "owner"
+		hook {
+			 name = "ACTIVATE"
+			 value = "` + cmd + strings.Replace(touch, "\\", "\\\\", -1) + `"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
-	assert.NoError(t, err, "YAML unmarshalled")
+	err := hcl.Unmarshal([]byte(dat), &project)
+	assert.NoError(t, err, "HCL unmarshalled")
+	project.FixUnmarshalledHooks() // temporary workaround for HCL bug
 	project.Persist()
 
 	err = RunHook("ACTIVATE")
@@ -131,19 +153,35 @@ func TestRunHookFail(t *testing.T) {
 	touch := filepath.Join(os.TempDir(), "state-test-runhook")
 	os.Remove(touch)
 
-	dat := `
-name: name
-owner: owner
-hooks:
-  - name: ACTIVATE
-    value: touch ` + touch + `
-    constraints: 
-       platform: foobar
-       environment: foobar`
-	dat = strings.TrimSpace(dat)
+	// Cannot use `hook { ... }` syntax due to HCL bug.
+	// Workaround is to use equivalent `hook = [{ ... }]` syntax.
+	//dat := strings.TrimSpace(`
+	//	name = "name"
+	//	owner = "owner"
+	//	hook {
+	//			name = "ACTIVATE"
+	//			value = "touch ` + strings.Replace(touch, "\\", "\\\\", -1) + `"
+	//			constraint {
+	//				 platform = "foobar"
+	//				 environment = "foobar"
+	//			}
+	//	}
+	//`)
+	dat := strings.TrimSpace(`
+		name = "name"
+		owner = "owner"
+		hook = [{
+				name = "ACTIVATE"
+				value = "touch ` + strings.Replace(touch, "\\", "\\\\", -1) + `"
+				constraint {
+					 platform = "foobar"
+					 environment = "foobar"
+				}
+		}]
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
-	assert.NoError(t, err, "YAML unmarshalled")
+	err := hcl.Unmarshal([]byte(dat), &project)
+	assert.NoError(t, err, "HCL unmarshalled")
 	project.Persist()
 
 	err = RunHook("ACTIVATE")
@@ -159,19 +197,35 @@ hooks:
 // and whether we don't find them if they don't exist.
 func TestHookExists(t *testing.T) {
 	project := projectfile.Project{}
-	dat := `
-name: name
-owner: owner
-hooks:
-  - name: ACTIVATE
-    value: don't touch
-    constraints: 
-      platform: foobar
-      environment: foobar`
-	dat = strings.TrimSpace(dat)
+	// Cannot use `hook { ... }` syntax due to HCL bug.
+	// Workaround is to use equivalent `hook = [{ ... }]` syntax.
+	//dat := strings.TrimSpace(`
+	//	name = "name"
+	//	owner = "owner"
+	//	hook {
+	//			name = "ACTIVATE"
+	//			value = "don't touch"
+	//			constraint {
+	//				platform = "foobar"
+	//				environment = "foobar"
+	//			}
+	//	}
+	//`)
+	dat := strings.TrimSpace(`
+		name = "name"
+		owner = "owner"
+		hook = [{
+				name = "ACTIVATE"
+				value = "don't touch"
+				constraint {
+					platform = "foobar"
+					environment = "foobar"
+				}
+		}]
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
-	assert.NoError(t, err, "YAML unmarshalled")
+	err := hcl.Unmarshal([]byte(dat), &project)
+	assert.NoError(t, err, "HCL unmarshalled")
 	project.Persist()
 	constraint := projectfile.Constraint{Platform: "foobar", Environment: "foobar"}
 	hookExists := projectfile.Hook{Name: "ACTIVATE", Value: "don't touch", Constraints: constraint}

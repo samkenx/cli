@@ -38,8 +38,8 @@ func moveToTmpDir() error {
 		return err
 	}
 
-	copy(filepath.Join(startingDir, "activestate.yaml"),
-		filepath.Join(tempDir, "activestate.yaml"))
+	copy(filepath.Join(startingDir, "activestate.hcl"),
+		filepath.Join(tempDir, "activestate.hcl"))
 	return nil
 }
 

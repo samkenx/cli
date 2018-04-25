@@ -1,6 +1,7 @@
 package projectfile
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,20 +10,21 @@ import (
 
 	"github.com/ActiveState/cli/internal/constants"
 	"github.com/ActiveState/cli/internal/environment"
+	"github.com/hashicorp/hcl"
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v2"
 )
 
 func TestProjectStruct(t *testing.T) {
 	project := Project{}
 	dat := strings.TrimSpace(`
-name: valueForName
-owner: valueForOwner
-namespace: valueForNamespace
-version: valueForVersion
-environments: valueForEnvironments`)
+		name = "valueForName"
+		owner = "valueForOwner"
+		namespace = "valueForNamespace"
+		version = "valueForVersion"
+		environments = "valueForEnvironments"
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &project)
+	err := hcl.Unmarshal([]byte(dat), &project)
 	assert.Nil(t, err, "Should not throw an error")
 
 	assert.Equal(t, "valueForName", project.Name, "Name should be set")
@@ -34,111 +36,177 @@ environments: valueForEnvironments`)
 }
 
 func TestPlatformStruct(t *testing.T) {
-	platform := Platform{}
+	root := []map[string]map[string]Platform{}
 	dat := strings.TrimSpace(`
-name: valueForName
-os: valueForOS
-version: valueForVersion
-architecture: valueForArch`)
+		platform "valueForName" {
+			os = "valueForOS"
+			version = "valueForVersion"
+			architecture = "valueForArch"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &platform)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
 
-	assert.Equal(t, "valueForName", platform.Name, "Name should be set")
-	assert.Equal(t, "valueForOS", platform.Os, "OS should be set")
-	assert.Equal(t, "valueForVersion", platform.Version, "Version should be set")
-	assert.Equal(t, "valueForArch", platform.Architecture, "Architecture should be set")
+	platforms := root[0]["platform"]
+	assert.NotNil(t, platforms, "At least one platform was detected")
+	assert.Equal(t, 1, len(platforms), "One platform was defined")
+
+	assert.NotNil(t, platforms["valueForName"], "Name should be set")
+	assert.Equal(t, "valueForOS", platforms["valueForName"].Os, "OS should be set")
+	assert.Equal(t, "valueForVersion", platforms["valueForName"].Version, "Version should be set")
+	assert.Equal(t, "valueForArch", platforms["valueForName"].Architecture, "Architecture should be set")
 }
 
 func TestBuildStruct(t *testing.T) {
-	build := make(Build)
+	root := []map[string]Build{}
 	dat := strings.TrimSpace(`
-key1: val1
-key2: val2`)
+		build {
+			key1 = "val1"
+			key2 = "val2"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &build)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
+
+	build := root[0]["build"]
+	assert.NotNil(t, build, "Build options were detected")
 
 	assert.Equal(t, "val1", build["key1"], "Key1 should be set")
 	assert.Equal(t, "val2", build["key2"], "Key2 should be set")
 }
 
 func TestLanguageStruct(t *testing.T) {
-	language := Language{}
+	root := []map[string]map[string]Language{}
 	dat := strings.TrimSpace(`
-name: valueForName
-version: valueForVersion`)
+		language "valueForName" {
+			version = "valueForVersion"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &language)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
 
-	assert.Equal(t, "valueForName", language.Name, "Name should be set")
-	assert.Equal(t, "valueForVersion", language.Version, "Version should be set")
+	languages := root[0]["language"]
+	assert.NotNil(t, languages, "At least one language was detected")
+	assert.Equal(t, 1, len(languages), "One language was defined")
+
+	assert.NotNil(t, languages["valueForName"], "Name should be set")
+	assert.Equal(t, "valueForVersion", languages["valueForName"].Version, "Version should be set")
 }
 
 func TestConstraintStruct(t *testing.T) {
-	constraint := Constraint{}
+	root := []map[string]Constraint{}
 	dat := strings.TrimSpace(`
-platform: valueForPlatform
-environment: valueForEnvironment`)
+		constraint {
+			platform = "valueForPlatform"
+			environment = "valueForEnvironment"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &constraint)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
+
+	constraint := root[0]["constraint"]
+	assert.NotNil(t, constraint, "A constraint was detected")
 
 	assert.Equal(t, "valueForPlatform", constraint.Platform, "Platform should be set")
 	assert.Equal(t, "valueForEnvironment", constraint.Environment, "Environment should be set")
 }
 
 func TestPackageStruct(t *testing.T) {
-	pkg := Package{}
+	root := []map[string]map[string]Package{}
 	dat := strings.TrimSpace(`
-name: valueForName
-version: valueForVersion`)
+		package "valueForName" {
+			version = "valueForVersion"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &pkg)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
 
-	assert.Equal(t, "valueForName", pkg.Name, "Name should be set")
-	assert.Equal(t, "valueForVersion", pkg.Version, "Version should be set")
+	packages := root[0]["package"]
+	assert.NotNil(t, packages, "At least one package was detected")
+	assert.Equal(t, 1, len(packages), "One package was defined")
+
+	assert.NotNil(t, packages["valueForName"], "Name should be set")
+	assert.Equal(t, "valueForVersion", packages["valueForName"].Version, "Version should be set")
 }
 
 func TestVariableStruct(t *testing.T) {
-	variable := Variable{}
+	root := []map[string]map[string]Variable{}
 	dat := strings.TrimSpace(`
-name: valueForName
-value: valueForValue`)
+		variable "valueForName" {
+			value = "valueForValue"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &variable)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
 
-	assert.Equal(t, "valueForName", variable.Name, "Name should be set")
-	assert.Equal(t, "valueForValue", variable.Value, "Value should be set")
+	variables := root[0]["variable"]
+	assert.NotNil(t, variables, "At least one variable was detected")
+	assert.Equal(t, 1, len(variables), "One variable was defined")
+
+	assert.NotNil(t, variables["valueForName"], "Name should be set")
+	assert.Equal(t, "valueForValue", variables["valueForName"].Value, "Value should be set")
 }
 
 func TestHookStruct(t *testing.T) {
-	hook := Hook{}
+	root := []map[string]Hook{}
 	dat := strings.TrimSpace(`
-name: valueForName
-value: valueForValue`)
+		hook {
+			name = "valueForName"
+			value = "valueForValue"
+		}
 
-	err := yaml.Unmarshal([]byte(dat), &hook)
+		hook {
+			name = "valueForName"
+			value = "valueForValue2"
+		}
+	`)
+
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 2, len(root), "Two config nodes were detected")
+
+	hook := root[0]["hook"]
+	assert.NotNil(t, hook, "A hook was detected")
 
 	assert.Equal(t, "valueForName", hook.Name, "Name should be set")
 	assert.Equal(t, "valueForValue", hook.Value, "Value should be set")
+
+	hook = root[1]["hook"]
+	assert.NotNil(t, hook, "Another hook was detected")
+	assert.Equal(t, "valueForName", hook.Name, "Name should be set")
+	assert.Equal(t, "valueForValue2", hook.Value, "Value should be set")
 }
 
 func TestCommandStruct(t *testing.T) {
-	command := Command{}
+	root := []map[string]map[string]Command{}
 	dat := strings.TrimSpace(`
-name: valueForName
-value: valueForCommand`)
+		command "valueForName" {
+			value = "valueForCommand"
+		}
+	`)
 
-	err := yaml.Unmarshal([]byte(dat), &command)
+	err := hcl.Unmarshal([]byte(dat), &root)
 	assert.Nil(t, err, "Should not throw an error")
+	assert.Equal(t, 1, len(root), "One config node was detected")
 
-	assert.Equal(t, "valueForName", command.Name, "Name should be set")
-	assert.Equal(t, "valueForCommand", command.Value, "Command should be set")
+	commands := root[0]["command"]
+	assert.NotNil(t, commands, "At least one command was detected")
+	assert.Equal(t, 1, len(commands), "One command was defined")
+
+	assert.NotNil(t, commands["valueForName"], "Name should be set")
+	assert.Equal(t, "valueForCommand", commands["valueForName"].Value, "Command should be set")
 }
 
 func TestParse(t *testing.T) {
@@ -148,10 +216,11 @@ func TestParse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	project, err := Parse(filepath.Join(rootpath, "activestate.yml.nope"))
+	project, err := Parse(filepath.Join(rootpath, "activestate.hcl.nope"))
+	fmt.Println(err)
 	assert.NotNil(t, err, "Should throw an error")
 
-	project, err = Parse(filepath.Join(rootpath, "test", "activestate.yaml"))
+	project, err = Parse(filepath.Join(rootpath, "test", "activestate.hcl"))
 	assert.Nil(t, err, "Should not throw an error")
 
 	assert.NotEmpty(t, project.Name, "Name should be set")
@@ -161,35 +230,37 @@ func TestParse(t *testing.T) {
 	assert.NotEmpty(t, project.Platforms, "Platforms should be set")
 	assert.NotEmpty(t, project.Environments, "Environments should be set")
 
-	assert.NotEmpty(t, project.Platforms[0].Name, "Platform name should be set")
-	assert.NotEmpty(t, project.Platforms[0].Os, "Platform OS name should be set")
-	assert.NotEmpty(t, project.Platforms[0].Architecture, "Platform architecture name should be set")
-	assert.NotEmpty(t, project.Platforms[0].Libc, "Platform libc name should be set")
-	assert.NotEmpty(t, project.Platforms[0].Compiler, "Platform compiler name should be set")
+	assert.NotNil(t, project.Platforms["Linux64Label"], "Platform name should be set")
+	assert.NotEmpty(t, project.Platforms["Linux64Label"].Os, "Platform OS name should be set")
+	assert.NotEmpty(t, project.Platforms["Linux64Label"].Architecture, "Platform architecture name should be set")
+	assert.NotEmpty(t, project.Platforms["Linux64Label"].Libc, "Platform libc name should be set")
+	assert.NotEmpty(t, project.Platforms["Linux64Label"].Compiler, "Platform compiler name should be set")
 
-	assert.NotEmpty(t, project.Languages[0].Name, "Language name should be set")
-	assert.NotEmpty(t, project.Languages[0].Version, "Language version should be set")
+	assert.NotNil(t, project.Languages["Go"], "Language name should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Version, "Language version should be set")
 
-	assert.NotEmpty(t, project.Languages[0].Packages[0].Name, "Package name should be set")
-	assert.NotEmpty(t, project.Languages[0].Packages[0].Version, "Package version should be set")
+	assert.NotNil(t, project.Languages["Go"].Packages["golang.org/x/crypto"], "Package name should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Packages["golang.org/x/crypto"].Version, "Package version should be set")
 
-	assert.NotEmpty(t, project.Languages[0].Packages[0].Build, "Package build should be set")
-	assert.NotEmpty(t, project.Languages[0].Packages[0].Build["debug"], "Build debug should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Packages["golang.org/x/crypto"].Build, "Package build should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Packages["golang.org/x/crypto"].Build["debug"], "Build debug should be set")
 
-	assert.NotEmpty(t, project.Languages[0].Packages[1].Build, "Package build should be set")
-	assert.NotEmpty(t, project.Languages[0].Packages[1].Build["override"], "Build override should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Packages["gopkg.in/yaml.v2"].Build, "Package build should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Packages["gopkg.in/yaml.v2"].Build["override"], "Build override should be set")
 
-	assert.NotEmpty(t, project.Languages[0].Constraints.Platform, "Platform constraint should be set")
-	assert.NotEmpty(t, project.Languages[0].Constraints.Environment, "Environment constraint should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Constraints.Platform, "Platform constraint should be set")
+	assert.NotEmpty(t, project.Languages["Go"].Constraints.Environment, "Environment constraint should be set")
 
-	assert.NotEmpty(t, project.Variables[0].Name, "Variable name should be set")
-	assert.NotEmpty(t, project.Variables[0].Value, "Variable value should be set")
+	assert.NotNil(t, project.Variables["DEBUG"], "Variable name should be set")
+	assert.NotEmpty(t, project.Variables["DEBUG"].Value, "Variable value should be set")
 
 	assert.NotEmpty(t, project.Hooks[0].Name, "Hook name should be set")
 	assert.NotEmpty(t, project.Hooks[0].Value, "Hook value should be set")
+	assert.NotEmpty(t, project.Hooks[1].Name, "Hook name should be set")
+	assert.NotEmpty(t, project.Hooks[1].Value, "Hook value should be set")
 
-	assert.NotEmpty(t, project.Commands[0].Name, "Command name should be set")
-	assert.NotEmpty(t, project.Commands[0].Value, "Command value should be set")
+	assert.NotEmpty(t, project.Commands["tests"], "Command name should be set")
+	assert.NotEmpty(t, project.Commands["tests"].Value, "Command value should be set")
 
 	assert.NotEmpty(t, project.Path(), "Path should be set")
 }
@@ -201,9 +272,9 @@ func TestSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path := filepath.Join(rootpath, "test", "activestate.yaml")
+	path := filepath.Join(rootpath, "test", "activestate.hcl")
 	project, err := Parse(path)
-	assert.NoError(t, err, "Should parse our yaml file")
+	assert.NoError(t, err, "Should parse our hcl file")
 
 	tmpfile, err := ioutil.TempFile("", "test")
 	assert.NoError(t, err, "Should create a temp file")
@@ -273,7 +344,7 @@ func TestGetActivated(t *testing.T) {
 
 	os.Chdir(root)
 	config2, err := GetSafe()
-	assert.NoError(t, err, "No error even if no activestate.yaml does not exist")
+	assert.NoError(t, err, "No error even if no activestate.hcl does not exist")
 	assert.Equal(t, config1, config2, "The same activated state is returned")
 
 	expected := filepath.Join(root, "test", constants.ConfigFileName)

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/thoas/go-funk"
+	funk "github.com/thoas/go-funk"
 
 	"github.com/ActiveState/cli/internal/print"
 
@@ -70,9 +70,9 @@ func Activate() *failures.Failure {
 	project := projectfile.Get()
 
 	if project.Variables != nil {
-		for _, variable := range project.Variables {
+		for name, variable := range project.Variables {
 			if !constraints.IsConstrained(variable.Constraints) {
-				os.Setenv(variable.Name, variable.Value)
+				os.Setenv(name, variable.Value)
 			}
 		}
 	}

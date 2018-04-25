@@ -111,5 +111,5 @@ func TestSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(true, funk.Contains(string(dat), "foo: bar"), "Config should contain our newly added field")
+	assert.Equal(true, funk.Contains(string(dat), "\"foo\" = \"bar\""), "Config should contain our newly added field")
 }

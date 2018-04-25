@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ActiveState/cli/internal/failures"
-	"github.com/thoas/go-funk"
+	funk "github.com/thoas/go-funk"
 
 	"github.com/ActiveState/cli/internal/locale"
 	"github.com/ActiveState/cli/pkg/cmdlets/commands"
@@ -55,7 +55,7 @@ var Command = &commands.Command{
 // Execute the hook add command
 // Adds a command to be run on the given hook trigger
 func Execute(cmd *cobra.Command, args []string) {
-	// Add hook to activestate.yaml for the active project
+	// Add hook to activestate.hcl for the active project
 	project := projectfile.Get()
 
 	newHook := projectfile.Hook{Name: Args.Hook, Value: Args.Command}
