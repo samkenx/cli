@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ActiveState/cli/internal/constants"
 	"github.com/ActiveState/cli/internal/failures"
@@ -137,12 +138,34 @@ func (p *Project) SetPath(path string) {
 }
 
 // Save the project to its activestate.hcl file
+// This is done by updating AST nodes for values that have changed and adding
+// AST nodes for new values.
 func (p *Project) Save() error {
-	// TODO: update p.astNode nodes with project fields
-	//dat, err := hcl.Marshal(p)
-	//if err != nil {
-	//	return err
-	//}
+	// Update root AST nodes.
+	for key, value := range map[string]string{
+		"name":         p.Name,
+		"owner":        p.Owner,
+		"namespace":    p.Namespace,
+		"version":      p.Version,
+		"environments": p.Environments,
+	} {
+		p.updateASTRootNodeValue(key, value)
+	}
+
+	// Update AST platform nodes.
+	//p.updateASTPlatformNodes()
+
+	// Update AST language nodes.
+	//p.updateASTLanguageNodes()
+
+	// Update AST variable nodes.
+	//p.updateASTVariableNodes()
+
+	// Update AST hook nodes.
+	p.updateASTHookNodes()
+
+	// Update AST command nodes.
+	//p.updateASTCommandNodes()
 
 	f, err := os.Create(p.Path())
 	defer f.Close()
@@ -156,6 +179,205 @@ func (p *Project) Save() error {
 	}
 
 	return nil
+}
+
+// Updates the string value of a root node in the HCL config file AST.
+func (p *Project) updateASTRootNodeValue(key, value string) {
+	keyList := p.astFile.Node.(*ast.ObjectList).Filter(key)
+	if keyList.Items == nil {
+		logging.Debug("Could not update AST root node value for '%s': key not found", key)
+		return // benign programming error
+	}
+	if nodeValue, ok := keyList.Items[0].Val.(*ast.LiteralType); ok && strings.Trim(nodeValue.Token.Text, "\"") != value {
+		nodeValue.Token.Text = fmt.Sprintf("\"%s\"", value)
+	}
+}
+
+func (p *Project) updateASTHookNodes() {
+	logging.Debug("Updating AST hook nodes")
+
+	// Track project hooks that need to be added to the HCL config AST.
+	// Start with the premise that all project hooks need to be added. The list
+	// will be trimmed as equivalent AST nodes are found.
+	added := make([]Hook, len(p.Hooks))
+	copy(added, p.Hooks)
+
+	// Track HCL config AST nodes that need to be removed.
+	removed := []*ast.ObjectType{}
+
+	// Loop through all AST hook nodes.
+	// Any invalid nodes are skipped (not removed) so-as to not be destructive
+	// with a user's config file.
+	hookList := p.astFile.Node.(*ast.ObjectList).Filter("hook")
+	if hookList.Items == nil {
+		hookList.Items = []*ast.ObjectItem{}
+	}
+	for i, item := range hookList.Items {
+		// Ensure the hook node to check is an object.
+		node, ok := item.Val.(*ast.ObjectType)
+		if !ok {
+			logging.Debug("Hook node #%d is invalid (not an object)", i)
+			continue // skip invalid hook
+		}
+		logging.Debug("Attempting to find a project hook for hook node #%d", i)
+
+		// Track project hooks that may match with this hook node.
+		potentialMatches := make([]Hook, len(p.Hooks))
+		copy(potentialMatches, p.Hooks)
+
+		// Fetch the hook node's keys and filter out potential hook matches with
+		// different values.
+		nextNode := false
+		for _, key := range []string{"name", "value"} {
+			keyList := node.List.Filter(key)
+			if keyList.Items == nil {
+				logging.Debug("Hook node #%d is invalid (no %s key)", i, key)
+				nextNode = true
+				break
+			}
+			nodeValue, ok := keyList.Items[0].Val.(*ast.LiteralType)
+			if !ok {
+				logging.Debug("Hook node #%d is invalid (%s not a string)", i, key)
+				nextNode = true
+				break
+			}
+			text := strings.Trim(nodeValue.Token.Text, "\"")
+			for j := 0; j < len(potentialMatches); j++ {
+				hook := potentialMatches[j]
+				valueMap := map[string]string{
+					"name":  hook.Name,
+					"value": hook.Value,
+				}
+				if text != valueMap[key] {
+					logging.Debug("Removing candidate project hook %v for hook node #%d (%s != '%s')", hook, i, key, text)
+					potentialMatches = append(potentialMatches[:j], potentialMatches[j+1:]...)
+					j-- // stay on the same element index
+				}
+			}
+			// If no equivalent project hooks were found, this hook must have been
+			// removed.
+			if len(potentialMatches) == 0 {
+				logging.Debug("Removing hook node #%d (no matching project hooks found)", i)
+				removed = append(removed, node)
+				nextNode = true
+				break
+			}
+		}
+		if nextNode {
+			continue // either skip invalid hook or move to next node
+		}
+
+		// Fetch the hook node's "constraint" object and filter out potential hook
+		// matches with different constraints.
+		constraintList := node.List.Filter("constraint")
+		for j := 0; j < len(potentialMatches); j++ {
+			hook := potentialMatches[j]
+			if constraintList.Items == nil {
+				if hook.Constraints.Platform != "" || hook.Constraints.Environment != "" {
+					logging.Debug("Removing candidate project hook %v for hook node #%d (non-empty constraint)", hook, i)
+					potentialMatches = append(potentialMatches[:j], potentialMatches[j+1:]...)
+					j-- // stay on the same element index
+				}
+			} else {
+				constraintNode, ok := constraintList.Items[0].Val.(*ast.ObjectType)
+				if !ok {
+					logging.Debug("Hook node #%d is invalid (constraint not an object)", i)
+					nextNode = true
+					break
+				}
+				for name, value := range map[string]string{
+					"platform":    hook.Constraints.Platform,
+					"environment": hook.Constraints.Environment,
+				} {
+					nameList := constraintNode.List.Filter(name)
+					if nameList.Items == nil && value != "" {
+						logging.Debug("Removing candidate project hook %v for hook node #%d (constraint %s != '')", hook, i, name)
+						potentialMatches = append(potentialMatches[:j], potentialMatches[j+1:]...)
+						j--   // stay on the same element index
+						break // will continue looping through potentialMatches
+					}
+					nodeValue, ok := nameList.Items[0].Val.(*ast.LiteralType)
+					if !ok && value != "" {
+						logging.Debug("Removing candidate project hook %v for hook node #%d (constraint %s != '')", hook, i, name)
+						potentialMatches = append(potentialMatches[:j], potentialMatches[j+1:]...)
+						j--   // stay on the same element index
+						break // will continue looping through potentialMatches
+					}
+					text := strings.Trim(nodeValue.Token.Text, "\"")
+					if text != value {
+						logging.Debug("Removing candidate project hook %v for hook node #%d (constraint %s != '%s')", hook, i, name, text)
+						potentialMatches = append(potentialMatches[:j], potentialMatches[j+1:]...)
+						j--   // stay on the same element index
+						break // will continue looping through potentialMatches
+					}
+				}
+			}
+		}
+		if nextNode {
+			continue
+		}
+		// If no project hooks were found, this hook must have been removed.
+		if len(potentialMatches) == 0 {
+			logging.Debug("Removing hook node #%d (no matching project hooks found)", i)
+			removed = append(removed, node)
+			continue
+		}
+
+		// At this point, a matching project hook was found for this hook node.
+		// It does not need to be added as a new node.
+		logging.Debug("Found matching project hook for hook node #%d: %v", i, potentialMatches[0])
+		if len(potentialMatches) > 1 {
+			logging.Debug("More than one project hook found for hook node #%d:", i)
+			logging.Debug("%v", potentialMatches[1:])
+		}
+		for j, hook := range added {
+			if hook == potentialMatches[0] {
+				added = append(added[:j], added[j+1:]...)
+			}
+		}
+	}
+
+	nodes := p.astFile.Node.(*ast.ObjectList)
+
+	// Remove hook nodes that were marked for removal.
+	for _, node := range removed {
+		for i, item := range nodes.Items {
+			existingNode, ok := item.Val.(*ast.ObjectType)
+			if !ok {
+				continue
+			}
+			if existingNode == node {
+				nodes.Items = append(nodes.Items[:i], nodes.Items[i+1:]...)
+				break
+			}
+		}
+	}
+
+	// Add hook nodes that were marked for adding.
+	for _, hook := range added {
+		logging.Debug("Adding new hook node for project hook %v", hook)
+		if hook.Constraints.Platform != "" || hook.Constraints.Environment != "" {
+			node, _ := hcl.Parse(fmt.Sprintf(`
+				hook {
+					name = "%s"
+					value = "%s"
+					constraint {
+						platform = "%s"
+						environment = "%s"
+					}
+				}
+			`, hook.Name, hook.Value, hook.Constraints.Platform, hook.Constraints.Environment))
+			nodes.Add(node.Node.(*ast.ObjectList).Items[0])
+		} else {
+			node, _ := hcl.Parse(fmt.Sprintf(`
+				hook {
+					name = "%s"
+					value = "%s"
+				}
+			`, hook.Name, hook.Value))
+			nodes.Add(node.Node.(*ast.ObjectList).Items[0])
+		}
+	}
 }
 
 // Returns the path to the project activestate.hcl

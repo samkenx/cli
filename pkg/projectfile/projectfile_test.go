@@ -1,6 +1,7 @@
 package projectfile
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -290,6 +291,105 @@ func TestSave(t *testing.T) {
 
 	assert.FileExists(t, tmpfile.Name(), "Project file is saved")
 	assert.NotZero(t, stat.Size(), "Project file should have data")
+
+	os.Remove(tmpfile.Name())
+}
+
+func TestSaveUpdateName(t *testing.T) {
+	rootpath, _ := environment.GetRootPath()
+	project, err := Parse(filepath.Join(rootpath, "test", "activestate.hcl"))
+	assert.NoError(t, err, "Parsed activestate.hcl")
+
+	tmpfile, err := ioutil.TempFile("", "test")
+	assert.NoError(t, err, "Temp activestate.hcl created")
+	tmpfile.Close()
+	project.path = tmpfile.Name()
+
+	project.Name = "UpdatedName"
+	project.Save()
+	data, err := ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.True(t, bytes.Contains(data, []byte("name = \"UpdatedName\"")), "Project name was updated")
+
+	os.Remove(tmpfile.Name())
+}
+
+func TestSaveAddRemoveHooks(t *testing.T) {
+	rootpath, _ := environment.GetRootPath()
+	project, err := Parse(filepath.Join(rootpath, "test", "activestate.hcl"))
+	assert.NoError(t, err, "Parsed activestate.hcl")
+
+	tmpfile, err := ioutil.TempFile("", "test")
+	assert.NoError(t, err, "Temp activestate.hcl created")
+	tmpfile.Close()
+	project.path = tmpfile.Name()
+
+	// Add a new hook.
+	project.Hooks = append(project.Hooks, Hook{
+		Name:        "ADDED_HOOK",
+		Value:       "value",
+		Constraints: Constraint{Platform: "test", Environment: "test"},
+	})
+	project.Save()
+	data, err := ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.True(t, bytes.Contains(data, []byte("ADDED_HOOK")), "hook was added")
+	assert.Equal(t, 3, bytes.Count(data, []byte("hook {")), "3 hooks now")
+
+	// Remove the first hook (not the added one).
+	project.Hooks = project.Hooks[1:]
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.True(t, bytes.Contains(data, []byte("ADDED_HOOK")), "added hook is still there")
+	assert.Equal(t, 2, bytes.Count(data, []byte("hook {")), "first hook was removed (2 left)")
+
+	// Add another new hook, but with different constraints.
+	project.Hooks = append(project.Hooks, Hook{
+		Name:        "ADDED_HOOK",
+		Value:       "value",
+		Constraints: Constraint{Platform: "DIFFERENT_PLAT", Environment: "DIFFERENT_ENV"},
+	})
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.Equal(t, 2, bytes.Count(data, []byte("ADDED_HOOK")), "another hook was added")
+	assert.Equal(t, 3, bytes.Count(data, []byte("hook {")), "3 hooks now")
+
+	// Remove the most recently added hook.
+	project.Hooks = project.Hooks[:len(project.Hooks)-1]
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.Equal(t, 1, bytes.Count(data, []byte("ADDED_HOOK")), "one added hook was removed")
+	assert.Equal(t, 0, bytes.Count(data, []byte("DIFFERENT_")), "it was the most recent hook")
+	assert.Equal(t, 2, bytes.Count(data, []byte("hook {")), "2 hooks left")
+
+	// Add one last hook, but a simple one.
+	project.Hooks = append(project.Hooks, Hook{
+		Name:  "ADDED_HOOK",
+		Value: "value",
+	})
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.Equal(t, 2, bytes.Count(data, []byte("ADDED_HOOK")), "another hook was added")
+	assert.Equal(t, 3, bytes.Count(data, []byte("hook {")), "3 hooks now")
+
+	// Remove that added hook.
+	project.Hooks = project.Hooks[:len(project.Hooks)-1]
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.Equal(t, 1, bytes.Count(data, []byte("ADDED_HOOK")), "one added hook was removed")
+	assert.Equal(t, 2, bytes.Count(data, []byte("hook {")), "2 hooks left")
+
+	// Remove all hooks.
+	project.Hooks = []Hook{}
+	project.Save()
+	data, err = ioutil.ReadFile(tmpfile.Name())
+	assert.NoError(t, err, "Read from saved project file")
+	assert.Equal(t, 0, bytes.Count(data, []byte("hook {")), "all hooks removed")
 
 	os.Remove(tmpfile.Name())
 }
