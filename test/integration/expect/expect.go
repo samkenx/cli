@@ -150,6 +150,4 @@ func (s *Suite) Timeout(f func(stop chan bool), t time.Duration) error {
 	case <-time.After(t):
 		return errors.New("Timeout reached")
 	}
-
-	panic("I should never be reached")
 }
