@@ -1,6 +1,6 @@
 // +build linux darwin
 
-package expect
+package process
 
 import (
 	"fmt"
@@ -9,12 +9,13 @@ import (
 	"github.com/kr/pty"
 
 	"github.com/ActiveState/cli/internal/logging"
+	"github.com/ActiveState/cli/test/integration/expectx/stdio"
 )
 
 func (p *Process) start() error {
 	var err error
 	if p.pty, err = pty.Start(p.cmd); err != nil {
-		return err
+		return fmt.Errorf("cannot start cmd via pty: %s", err)
 	}
 
 	go func() {
@@ -39,7 +40,7 @@ func (p *Process) setupStdin() {
 }
 
 func (p *Process) setupStdout() {
-	outWriter := NewStdWriter()
+	outWriter := stdio.NewStdWriter()
 	outWriter.OnWrite(func(data []byte) {
 		p.stdout = p.stdout + string(data)
 		p.combined = p.combined + string(data)

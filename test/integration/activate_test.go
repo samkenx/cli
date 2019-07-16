@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/suite"
+	tsuite "github.com/stretchr/testify/suite"
 
 	"github.com/ActiveState/cli/internal/environment"
-	"github.com/ActiveState/cli/test/integration/expect"
+	"github.com/ActiveState/cli/test/integration/expectx/suite"
 )
 
 type ActivateTestSuite struct {
@@ -32,13 +32,13 @@ func (suite *ActivateTestSuite) TestActivatePython3() {
 	suite.Spawn("activate", "ActiveState-CLI/Python3")
 	suite.Expect("Where would you like to checkout")
 	suite.Send(tempDir)
-	suite.Send("echo \"PATH: $PATH\"")
-	suite.Send("echo \"python3 bin: $(which python3)\"")
-	suite.Send("echo \"tty: $(tty)\"")
-	suite.Send("exit")
 	suite.Expect("Downloading")
 	suite.Expect("Installing", 120*time.Second)
 	suite.WaitForInput(120 * time.Second)
+	suite.Send("echo ${ACTIVESTATE_ACTIVATED}")
+	suite.Send("echo $-")
+	//suite.Send("echo \"python3 bin: $(which python3)\"")
+	//suite.Send(`echo exit | strace bash -li |& less | grep '^open'`)
 	suite.Send("python3 -c \"import sys; print(sys.copyright)\"")
 	suite.Expect("ActiveState Software Inc.")
 	suite.Send("python3 -c \"import numpy; print(numpy.__doc__)\"")
@@ -48,8 +48,8 @@ func (suite *ActivateTestSuite) TestActivatePython3() {
 }
 
 func TestActivateTestSuite(t *testing.T) {
-	_ = suite.Run // vscode won't show test helpers unless I use this .. -.-
+	_ = tsuite.Run // vscode won't show test helpers unless I use this .. -.-
 
 	//suite.Run(t, new(ActivateTestSuite))
-	expect.RunParallel(t, new(ActivateTestSuite))
+	suite.RunParallel(t, new(ActivateTestSuite))
 }

@@ -1,9 +1,11 @@
-package expect
+package process
 
 import (
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/ActiveState/cli/test/integration/expectx/stdio"
 )
 
 type Process struct {
@@ -32,7 +34,7 @@ type Process struct {
 	exited  bool
 }
 
-func NewProcess(name string, args ...string) *Process {
+func New(name string, args ...string) *Process {
 	p := &Process{
 		cmd:      exec.Command(name, args...),
 		onOutput: func([]byte) {},
@@ -46,7 +48,7 @@ func NewProcess(name string, args ...string) *Process {
 }
 
 func (p *Process) setupStderr() {
-	errWriter := NewStdWriter()
+	errWriter := stdio.NewStdWriter()
 	errWriter.OnWrite(func(data []byte) {
 		p.stderr = p.stderr + string(data)
 		p.combined = p.combined + string(data)
@@ -109,38 +111,4 @@ func (p *Process) Run() error {
 	}
 
 	return nil
-}
-
-type StdReader struct {
-	onRead func(data []byte)
-}
-
-func NewStdReader() *StdReader {
-	return &StdReader{}
-}
-
-func (w *StdReader) OnRead(cb func(data []byte)) {
-	w.onRead = cb
-}
-
-func (w *StdReader) Read(p []byte) (n int, err error) {
-	w.onRead(p)
-	return len(p), nil
-}
-
-type StdWriter struct {
-	onWrite func(data []byte)
-}
-
-func NewStdWriter() *StdWriter {
-	return &StdWriter{}
-}
-
-func (w *StdWriter) OnWrite(cb func(data []byte)) {
-	w.onWrite = cb
-}
-
-func (w *StdWriter) Write(p []byte) (n int, err error) {
-	w.onWrite(p)
-	return len(p), nil
 }

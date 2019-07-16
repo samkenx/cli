@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/suite"
+	tsuite "github.com/stretchr/testify/suite"
 
-	"github.com/ActiveState/cli/test/integration/expect"
+	"github.com/ActiveState/cli/test/integration/expectx/suite"
 )
 
 var uid uuid.UUID
@@ -85,8 +85,8 @@ func (suite *AuthTestSuite) Login() {
 }
 
 func TestAuthTestSuite(t *testing.T) {
-	_ = suite.Run // vscode won't show test helpers unless I use this .. -.-
+	_ = tsuite.Run // vscode won't show test helpers unless I use this .. -.-
 
 	//suite.Run(t, new(AuthTestSuite))
-	expect.RunParallel(t, new(AuthTestSuite))
+	suite.RunParallel(t, new(AuthTestSuite))
 }

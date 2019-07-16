@@ -1,6 +1,6 @@
 // +build windows
 
-package expect
+package process
 
 import (
 	"fmt"

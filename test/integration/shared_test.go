@@ -7,19 +7,24 @@ import (
 	"path/filepath"
 
 	"github.com/ActiveState/cli/internal/environment"
-	"github.com/ActiveState/cli/test/integration/expect"
+	"github.com/ActiveState/cli/test/integration/expectx"
+	tsuite "github.com/stretchr/testify/suite"
 )
 
 var persistentUsername = "cli-integration-tests"
 var persistentPassword = "test-cli-integration"
 
 type Suite struct {
-	expect.Suite
+	tsuite.Suite
+	*expectx.Expectx
 }
 
 func (s *Suite) SetupTest() {
 	root := environment.GetRootPathUnsafe()
-	s.Executable = filepath.Join(root, "build/state")
+	failNow := func(format string, args ...interface{}) {
+		s.FailNow(format, args...)
+	}
+	s.Expectx = expectx.New(filepath.Join(root, "build/state"), failNow)
 
 	configDir, err := ioutil.TempDir("", "")
 	s.Require().NoError(err)
