@@ -25,6 +25,7 @@ type Expectx struct {
 func New(exec string, fail func(string, ...interface{})) *Expectx {
 	return &Expectx{
 		fail: fail,
+		exec: exec,
 	}
 }
 
