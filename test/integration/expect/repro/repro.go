@@ -62,6 +62,8 @@ func main() {
 	go func() {
 		fmt.Fprintf(p.stdin, "tty\n")
 		fmt.Fprintf(p.stdin, "echo \"-- OUT -- $ACTIVESTATE_ACTIVATED -- OUT --\"\n")
+		fmt.Fprintf(p.stdin, "echo \"-- OUT -- $PATH -- OUT --\"\n")
+		fmt.Fprintf(p.stdin, "echo \"-- OUT -- $- -- OUT --\"\n")
 		fmt.Fprintf(p.stdin, "exit\n")
 	}()
 	p.cmd.Wait()
