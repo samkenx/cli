@@ -1,114 +1,90 @@
 package process
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 
-	"github.com/ActiveState/cli/test/integration/expectx/stdio"
+	"github.com/kr/pty"
 )
 
 type Process struct {
-	// Process
-	cmd *exec.Cmd
-	pty *os.File
-
-	// Event handlers
-	onOutput func([]byte)
-	onStdout func([]byte)
-	onStderr func([]byte)
-
-	// stdin/stdout/stderr proxies
-	stdin     io.WriteCloser
-	inReader  io.Reader
-	inWriter  io.Writer
-	outWriter io.Writer
-
-	// Output tracking
-	combined string
-	stdout   string
-	stderr   string
-
-	// State
-	running bool
-	exited  bool
+	c  *exec.Cmd
+	wc chan struct{} // wait
 }
 
-func New(name string, args ...string) *Process {
-	p := &Process{
-		cmd:      exec.Command(name, args...),
-		onOutput: func([]byte) {},
-		onStdout: func([]byte) {},
-		onStderr: func([]byte) {},
-	}
-	p.setupStdin()
-	p.setupStdout()
-	p.setupStderr()
-	return p
-}
-
-func (p *Process) setupStderr() {
-	errWriter := stdio.NewStdWriter()
-	errWriter.OnWrite(func(data []byte) {
-		p.stderr = p.stderr + string(data)
-		p.combined = p.combined + string(data)
-		p.onOutput(data)
-		p.onStderr(data)
-	})
-	p.cmd.Stderr = errWriter
-}
-
-func (p *Process) SetEnv(env []string) {
-	p.cmd.Env = env
-}
-
-func (p *Process) OnOutput(cb func(output []byte)) {
-	p.onOutput = cb
-}
-
-func (p *Process) OnStdout(cb func(output []byte)) {
-	p.onStdout = cb
-}
-
-func (p *Process) OnStderr(cb func(errput []byte)) {
-	p.onStderr = cb
-}
-
-func (p *Process) CombinedOutput() string { return p.combined }
-
-func (p *Process) Stdout() string { return p.stdout }
-
-func (p *Process) Stderr() string { return p.stderr }
-
-func (p *Process) Running() bool { return p.running }
-
-func (p *Process) Exited() bool { return p.exited }
-
-func (p *Process) Quit() error {
-	return p.cmd.Process.Signal(os.Interrupt)
-}
-
-func (p *Process) Exit() error {
-	p.exited = true
-	p.running = false
-	return p.cmd.Process.Kill()
-}
-
-func (p *Process) Run() error {
-	if err := p.start(); err != nil {
-		return err
+func New(c *exec.Cmd, sin io.Reader, sout, serr io.Writer) (*Process, error) {
+	we := func(err error) error {
+		if err == nil {
+			return nil
+		}
+		return fmt.Errorf("cannot construct new process: %s", err)
 	}
 
-	p.running = true
-	defer func() {
-		p.running = false
-		p.exited = true
-		p.close()
+	wc := make(chan struct{})
+
+	p, t, err := pty.Open()
+	if err != nil {
+		return nil, we(err)
+	}
+	cleanup := func() {
+		defer safeClose(wc)
+		//_ = p.Close()
+		//_ = t.Close()
+	}
+
+	if c.Stdout == nil {
+		//c.Stdout = io.MultiWriter(t, sout)
+		c.Stdout = t
+	}
+	if c.Stderr == nil {
+		//c.Stderr = io.MultiWriter(t, serr)
+		c.Stderr = t
+	}
+	if c.Stdin == nil {
+		c.Stdin = t
+	}
+	if c.SysProcAttr == nil {
+		c.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	c.SysProcAttr.Setctty = true
+	c.SysProcAttr.Setsid = true
+
+	if err := c.Start(); err != nil {
+		cleanup()
+		return nil, we(err)
+	}
+
+	go func() {
+		defer cleanup()
+		c.Wait()
 	}()
 
-	if err := p.cmd.Wait(); err != nil {
-		return err
+	go func() {
+		_, _ = io.Copy(sout, p)
+	}()
+
+	go func() {
+		_, err := io.Copy(p, sin)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}()
+
+	x := Process{
+		c:  c,
+		wc: wc,
 	}
 
-	return nil
+	return &x, nil
+}
+
+func (p *Process) Wait() chan struct{} {
+	return p.wc
+}
+
+func (p *Process) Interrupt() {
+	p.c.Process.Signal(syscall.SIGINT)
 }

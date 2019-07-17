@@ -26,6 +26,12 @@ func (s *Suite) SetupTest() {
 	}
 	s.Expectx = expectx.New(filepath.Join(root, "build/state"), failNow)
 
+	/*x := expectx.New("bash", failNow)
+	x.Spawn("")
+	x.Send("export TESTER=bester")
+	x.SendInterrupt()
+	failNow("test")*/
+
 	configDir, err := ioutil.TempDir("", "")
 	s.Require().NoError(err)
 	cacheDir, err := ioutil.TempDir("", "")
@@ -48,6 +54,7 @@ func (s *Suite) SetupTest() {
 
 func (s *Suite) LoginAsPersistentUser() {
 	s.Spawn("auth", "--username", persistentUsername, "--password", persistentPassword)
+	s.Expect("The State Tool is currently")
 	s.Expect("succesfully authenticated")
 	s.Wait()
 }

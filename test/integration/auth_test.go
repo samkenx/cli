@@ -45,7 +45,7 @@ func (suite *AuthTestSuite) TestAuth() {
 
 func (suite *AuthTestSuite) Signup() {
 	suite.Spawn("auth", "signup")
-	defer suite.Stop()
+	defer suite.Close()
 
 	suite.Expect("username:")
 	suite.Send(suite.username)
@@ -63,7 +63,7 @@ func (suite *AuthTestSuite) Signup() {
 
 func (suite *AuthTestSuite) Logout() {
 	suite.Spawn("auth", "logout")
-	defer suite.Stop()
+	defer suite.Close()
 
 	suite.Expect("You have been logged out")
 	suite.Wait()
