@@ -37,14 +37,15 @@ func (suite *ActivateIntegrationTestSuite) TestActivateWithoutRuntime() {
 
 	suite.LoginAsPersistentUser()
 
-	suite.Spawn("activate", "ActiveState-CLI/Python3")
-	suite.Expect("Where would you like to checkout")
-	suite.SendLine(tempDir)
-	suite.Expect("activated state", 20*time.Second)
-	suite.WaitForInput(10 * time.Second)
+	cp := suite.Spawn("activate", "ActiveState-CLI/Python3")
+	defer cp.Close()
+	cp.Expect("Where would you like to checkout")
+	cp.SendLine(tempDir)
+	cp.Expect("activated state", 20*time.Second)
+	cp.WaitForInput(10 * time.Second)
 
-	suite.SendLine("exit 123")
-	suite.ExpectExitCode(123)
+	cp.SendLine("exit 123")
+	cp.ExpectExitCode(123)
 }
 
 func (suite *ActivateIntegrationTestSuite) TestActivatePythonByHostOnly() {
@@ -58,11 +59,13 @@ func (suite *ActivateIntegrationTestSuite) TestActivatePythonByHostOnly() {
 	suite.LoginAsPersistentUser()
 
 	projectName := "Python-LinuxWorks"
-	suite.Spawn("activate", "cli-integration-tests/"+projectName, "--path="+tempDir)
+	cp := suite.Spawn("activate", "cli-integration-tests/"+projectName, "--path="+tempDir)
+	defer cp.Close()
 
-	suite.Expect("Activating state")
-	suite.Expect("activated state", 120*time.Second)
-	suite.WaitForInput()
+	cp.Expect("Activating state")
+	cp.Expect("activated state", 120*time.Second)
+	cp.WaitForInput()
+	cp.ExpectExitCode(0)
 }
 
 func (suite *ActivateIntegrationTestSuite) activatePython(version string) {
@@ -81,35 +84,36 @@ func (suite *ActivateIntegrationTestSuite) activatePython(version string) {
 	suite.LoginAsPersistentUser()
 	suite.AppendEnv([]string{"ACTIVESTATE_CLI_DISABLE_RUNTIME=false"})
 
-	suite.Spawn("activate", "ActiveState-CLI/Python"+version)
-	suite.Expect("Where would you like to checkout")
-	suite.SendLine(tempDir)
-	suite.Expect("Downloading", 20*time.Second)
-	suite.Expect("Installing", 120*time.Second)
-	suite.Expect("activated state", 120*time.Second)
+	cp := suite.Spawn("activate", "ActiveState-CLI/Python"+version)
+	defer cp.Close()
+	cp.Expect("Where would you like to checkout")
+	cp.SendLine(tempDir)
+	cp.Expect("Downloading", 20*time.Second)
+	cp.Expect("Installing", 120*time.Second)
+	cp.Expect("activated state", 120*time.Second)
 
 	// ensure that terminal contains output "Installing x/y" with x, y numbers and x=y
 	installingString := regexp.MustCompile(
 		"Installing *([0-9]+) */ *([0-9]+)",
-	).FindAllStringSubmatch(suite.TerminalSnapshot(), 1)
-	suite.Require().Len(installingString, 1, "no match for Installing x / x in\n%s", suite.TerminalSnapshot())
+	).FindAllStringSubmatch(cp.TerminalSnapshot(), 1)
+	suite.Require().Len(installingString, 1, "no match for Installing x / x in\n%s", cp.TerminalSnapshot())
 	suite.Require().Equalf(
 		installingString[0][1], installingString[0][2],
 		"expected all artifacts are reported to be installed, got %s", installingString[0][0],
 	)
 
 	// ensure that shell is functional
-	suite.WaitForInput()
+	cp.WaitForInput()
 
 	// test python
-	suite.SendLine(pythonExe + " -c \"import sys; print(sys.copyright)\"")
-	suite.Expect("ActiveState Software Inc.")
-	suite.SendLine(pythonExe + " -c \"import pytest; print(pytest.__doc__)\"")
-	suite.Expect("unit and functional testing")
+	cp.SendLine(pythonExe + " -c \"import sys; print(sys.copyright)\"")
+	cp.Expect("ActiveState Software Inc.")
+	cp.SendLine(pythonExe + " -c \"import pytest; print(pytest.__doc__)\"")
+	cp.Expect("unit and functional testing")
 
 	// de-activate shell
-	suite.SendLine("exit")
-	suite.ExpectExitCode(0)
+	cp.SendLine("exit")
+	cp.ExpectExitCode(0)
 }
 
 func (suite *ActivateIntegrationTestSuite) TestActivatePython3_Forward() {
@@ -132,22 +136,26 @@ version: %s
 	suite.Require().NoError(fail.ToError())
 	suite.Require().FileExists(filepath.Join(tempDir, "activestate.yaml"))
 
+	fmt.Printf("login \n")
 	suite.LoginAsPersistentUser()
+	fmt.Printf("logged in \n")
 	suite.AppendEnv([]string{"ACTIVESTATE_CLI_DISABLE_RUNTIME=false"})
 
 	// Ensure we have the most up to date version of the project before activating
-	suite.Spawn("pull")
-	suite.Expect("Your activestate.yaml has been updated to the latest version available")
-	suite.Expect("If you have any active instances of this project open in other terminals")
-	suite.ExpectExitCode(0)
+	cp := suite.Spawn("pull")
+	defer cp.Close()
+	cp.Expect("Your activestate.yaml has been updated to the latest version available")
+	cp.Expect("If you have any active instances of this project open in other terminals")
+	cp.ExpectExitCode(0)
 
-	suite.Spawn("activate")
-	suite.Expect("Activating state: ActiveState-CLI/Python3")
+	c2 := suite.Spawn("activate")
+	defer c2.Close()
+	c2.Expect("Activating state: ActiveState-CLI/Python3")
 
 	// not waiting for activation, as we test that part in a different test
-	suite.WaitForInput()
-	suite.SendLine("exit")
-	suite.ExpectExitCode(0)
+	c2.WaitForInput()
+	c2.SendLine("exit")
+	c2.ExpectExitCode(0)
 }
 
 func (suite *ActivateIntegrationTestSuite) testOutput(method string) {
@@ -155,10 +163,12 @@ func (suite *ActivateIntegrationTestSuite) testOutput(method string) {
 	defer cb()
 
 	suite.LoginAsPersistentUser()
-	suite.Spawn("activate", "ActiveState-CLI/Python3", "--output", method)
-	suite.Expect("Where would you like to checkout")
-	suite.SendLine(tempDir)
-	suite.Expect("[activated-JSON]")
+	cp := suite.Spawn("activate", "ActiveState-CLI/Python3", "--output", method)
+	defer cp.Close()
+	cp.Expect("Where would you like to checkout")
+	cp.SendLine(tempDir)
+	cp.Expect("[activated-JSON]")
+	cp.ExpectExitCode(0)
 }
 
 func (suite *ActivateIntegrationTestSuite) TestActivate_Subdir() {
@@ -184,21 +194,23 @@ version: %s
 	suite.Require().NoError(fail.ToError())
 
 	// Pull to ensure we have an up to date config file
-	suite.Spawn("pull")
-	suite.Expect("Your activestate.yaml has been updated to the latest version available")
-	suite.Expect("If you have any active instances of this project open in other terminals")
-	suite.ExpectExitCode(0)
+	cp := suite.Spawn("pull")
+	defer cp.Close()
+	cp.Expect("Your activestate.yaml has been updated to the latest version available")
+	cp.Expect("If you have any active instances of this project open in other terminals")
+	cp.ExpectExitCode(0)
 
 	// Change directories to a sub directory
 	suite.SetWd(filepath.Join(tempDir, "foo", "bar", "baz"))
 
 	// Activate in the subdirectory
-	suite.Spawn("activate")
-	suite.Expect("Activating state: ActiveState-CLI/Python3")
+	c2 := suite.Spawn("activate")
+	defer c2.Close()
+	c2.Expect("Activating state: ActiveState-CLI/Python3")
 
-	suite.WaitForInput()
-	suite.SendLine("exit")
-	suite.ExpectExitCode(0)
+	c2.WaitForInput()
+	c2.SendLine("exit")
+	c2.ExpectExitCode(0)
 
 }
 
