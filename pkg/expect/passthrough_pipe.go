@@ -3,6 +3,7 @@ package expect
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 )
@@ -53,12 +54,38 @@ func (p *PassthroughPipe) Close() error {
 	return nil
 }
 
-// Drain flushes the pipe by consuming all the data written to it
 func (p *PassthroughPipe) Drain() {
-	buf := make([]byte, 1<<5)
+	ping := make(chan struct{})
+
+	go func() {
+		defer close(ping)
+
+		buf := make([]byte, 1<<6)
+		for {
+			fmt.Println("clear rdr +++ +++ +++")
+			n, err := p.rdr.Read(buf)
+			fmt.Println(n, err, "=== === ===")
+			if n < len(buf) || n == 0 || err != nil {
+				fmt.Println("break --- --- ---")
+				break
+			}
+
+			select {
+			case ping <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
 	for {
-		n, err := p.rdr.Read(buf)
-		if n == 0 || err != nil {
+		select {
+		case _, ok := <-ping:
+			if ok {
+				continue
+			}
+			return
+
+		case <-time.After(time.Millisecond * 100):
 			return
 		}
 	}

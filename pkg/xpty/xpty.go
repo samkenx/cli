@@ -126,7 +126,11 @@ func (p *Xpty) TerminalInPipe() io.Writer {
 
 // Close closes the abstracted pseudo-terminal
 func (p *Xpty) Close() error {
-	err := p.impl.close()
+	err := p.rwPipe.Close()
+	if err != nil {
+		return err
+	}
+	err = p.impl.close()
 	if err != nil {
 		return err
 	}

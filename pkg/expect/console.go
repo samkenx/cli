@@ -161,11 +161,9 @@ func NewConsole(opts ...ConsoleOpt) (*Console, error) {
 	if err != nil {
 		return nil, err
 	}
-	closers := append(options.Closers)
+	closers := options.Closers
 
 	passthroughPipe := NewPassthroughPipe(pty.TerminalOutPipe())
-
-	closers = append(options.Closers, passthroughPipe)
 
 	c := &Console{
 		opts:            options,
@@ -218,6 +216,10 @@ func (c *Console) Fd() uintptr {
 	return c.Pty.TerminalOutFd()
 }
 
+func (c *Console) Drain() {
+	c.passthroughPipe.Drain()
+}
+
 // Close closes Console's tty. Calling Close will unblock Expect and ExpectEOF.
 func (c *Console) Close() error {
 	for _, fd := range c.closers {
@@ -227,8 +229,11 @@ func (c *Console) Close() error {
 		}
 	}
 
-	// close the tty in the end
-	return c.Pty.Close()
+	if err := c.Pty.Close(); err != nil {
+		c.Logf("failed to close: %s", err)
+	}
+
+	return c.passthroughPipe.Close()
 }
 
 // Send writes string s to Console's tty.

@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -359,15 +360,13 @@ func (s *Suite) ExpectNotExitCode(exitCode int, timeout ...time.Duration) {
 // Wait waits for the tested process to finish and returns its state including ExitCode
 func (s *Suite) Wait(timeout ...time.Duration) (state *os.ProcessState, err error) {
 	if s.cmd == nil || s.cmd.Process == nil {
-		return
+		return nil, errors.New("command is not setup and running")
 	}
 
 	t := defaultTimeout
 	if len(timeout) > 0 {
 		t = timeout[0]
 	}
-
-	s.console.Drain()
 
 	type processState struct {
 		state *os.ProcessState
@@ -377,6 +376,9 @@ func (s *Suite) Wait(timeout ...time.Duration) (state *os.ProcessState, err erro
 
 	go func() {
 		defer close(states)
+
+		s.console.Drain()
+
 		s, e := s.cmd.Process.Wait()
 		states <- processState{state: s, err: e}
 	}()
@@ -384,8 +386,9 @@ func (s *Suite) Wait(timeout ...time.Duration) (state *os.ProcessState, err erro
 	select {
 	case s := <-states:
 		return s.state, s.err
+
 	case <-time.After(t):
-		return nil, fmt.Errorf("i/o error")
+		return nil, fmt.Errorf("spawned process wait timeout")
 	}
 }
 
@@ -421,7 +424,7 @@ func (s *Suite) CreateNewUser() string {
 	s.Expect("email:")
 	s.SendLine(email)
 	s.Expect("account has been registered", authnTimeout)
-	s.Wait()
+	s.ExpectExitCode(0)
 
 	return username
 }
