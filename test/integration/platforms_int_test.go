@@ -30,7 +30,7 @@ func (suite *PlatformsIntegrationTestSuite) TestPlatforms_searchSimple() {
 	for _, expectation := range expectations {
 		suite.Expect(expectation)
 	}
-	suite.Wait()
+	suite.ExpectExitCode(0)
 }
 
 func (suite *PlatformsIntegrationTestSuite) TestPlatforms_listSimple() {
@@ -39,19 +39,16 @@ func (suite *PlatformsIntegrationTestSuite) TestPlatforms_listSimple() {
 
 	suite.PrepareActiveStateYAML(tempDir)
 
-	cmds := []string{"", "search"}
-	for _, cmd := range cmds {
-		suite.Spawn("platforms", cmd)
-		expectations := []string{
-			"Linux",
-			"4.15.0",
-			"64",
-		}
-		for _, expectation := range expectations {
-			suite.Expect(expectation)
-		}
-		suite.Wait()
+	suite.Spawn("platforms")
+	expectations := []string{
+		"Linux",
+		"4.15.0",
+		"64",
 	}
+	for _, expectation := range expectations {
+		suite.Expect(expectation)
+	}
+	suite.ExpectExitCode(0)
 }
 
 func (suite *PlatformsIntegrationTestSuite) TestPlatforms_addRemoveSimple() {
@@ -71,6 +68,7 @@ func (suite *PlatformsIntegrationTestSuite) TestPlatforms_addRemoveSimple() {
 
 	suite.Spawn("platforms", "add", platform, version)
 	suite.ExpectExitCode(0)
+
 	suite.Spawn("platforms", "remove", platform, version)
 	suite.ExpectExitCode(0)
 }
