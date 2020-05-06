@@ -1,3 +1,12 @@
 {
-  "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "mdrohmann",
+      "id": 8608210,
+      "comment_id": 624723155,
+      "created_at": "2020-05-06T15:36:50Z",
+      "repoId": 113353809,
+      "pullRequestNo": 687
+    }
+  ]
 }
