@@ -67,7 +67,7 @@ func (suite *LanguagesIntegrationTestSuite) TestLanguages_update() {
 	cp = ts.Spawn("languages")
 	cp.Expect("Name")
 	cp.Expect("Python")
-	cp.Expect("3.8.1")
+	cp.Expect("3.8.2")
 	cp.ExpectExitCode(0)
 }
 

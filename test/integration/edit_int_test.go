@@ -71,7 +71,7 @@ func (suite *EditIntegrationTestSuite) TestEdit() {
 	defer ts.Close()
 	cp := ts.SpawnWithOpts(e2e.WithArgs("scripts", "edit", "test-script"), env)
 	cp.Expect("Watching file changes")
-	cp.Expect("Are you done editing?")
+	cp.Expect("done editing?")
 	cp.Expect("Script changes detected")
 	cp.SendLine("Y")
 	cp.ExpectExitCode(0)
