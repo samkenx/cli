@@ -1,0 +1,5 @@
+  - name: added-script
+    language: bash
+    description: This is an added script
+    value: |
+      echo added

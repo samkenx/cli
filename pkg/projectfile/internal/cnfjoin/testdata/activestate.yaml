@@ -1,0 +1,10 @@
+project: https://platform.activestate.example/ActiveState/junk?commitID=00000000-1111-0000-1111-00000000
+constants:
+  - name: TESTER
+    value: tester_value
+scripts:
+  - name: example
+    language: bash
+    description: This is an example
+    value: |
+      echo example output
