@@ -10,6 +10,8 @@ import (
 	"text/template"
 
 	"github.com/ActiveState/cli/internal/constants"
+
+	"github.com/codemodus/relay"
 	"github.com/google/uuid"
 )
 
@@ -156,39 +158,23 @@ func parseArgs(args []string) (*config, error) {
 	return nil, fmt.Errorf("invalid arguments: Expected <preset> <visibility> <owner/name> <version> | \"base\"")
 }
 
-func run(args []string) error {
-	c, err := parseArgs(args)
-	if err != nil {
-		return err
-	}
+func main() {
+	ck := relay.New().Check
+	defer relay.Handle()
+
+	c, err := parseArgs(os.Args)
+	ck(err)
 
 	in, err := ioutil.ReadFile(filepath.FromSlash(InFile))
-	if err != nil {
-		return err
-	}
+	ck(err)
+
 	tmpl, err := template.New("Product.wxs").Parse(string(in))
-	if err != nil {
-		return err
-	}
+	ck(err)
 
 	f, err := os.Create(filepath.FromSlash(OutFile))
-	if err != nil {
-		return err
-	}
+	ck(err)
 	defer f.Close()
+
 	err = tmpl.Execute(f, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func main() {
-	err := run(os.Args)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
-	}
-
+	ck(err)
 }
