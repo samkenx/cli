@@ -10,22 +10,28 @@ require (
 	github.com/ActiveState/sysinfo v0.0.0-20200619170619-0582d42daf27
 	github.com/ActiveState/termtest v0.5.3
 	github.com/ActiveState/termtest/expect v0.5.3
+	github.com/AlecAivazis/survey/v2 v2.1.1
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 	github.com/PuerkitoBio/purell v1.1.0 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
+	github.com/abiosoft/ishell v2.0.0+incompatible
+	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/asaskevich/govalidator v0.0.0-20180315120708-ccb8e960c48f // indirect
 	github.com/autarch/testify v1.2.2
 	github.com/aws/aws-sdk-go v1.13.8
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bndr/gotabulate v0.0.0-20170315142410-bc555436bfd5
+	github.com/c-bata/go-prompt v0.2.3
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/creack/pty v1.1.11
 	github.com/dave/jennifer v0.18.0
 	github.com/denisbrodbeck/machineid v0.8.0
 	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
 	github.com/fatih/color v1.5.0
 	github.com/felixge/fgprof v0.9.0
+	github.com/flynn-archive/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-ini/ini v1.32.0 // indirect
 	github.com/go-ole/go-ole v1.2.4
@@ -58,21 +64,21 @@ require (
 	github.com/machinebox/graphql v0.2.2
 	github.com/magiconair/properties v1.7.4 // indirect
 	github.com/mailru/easyjson v0.0.0-20180323154445-8b799c424f57 // indirect
+	github.com/manifoldco/promptui v0.7.0
 	github.com/mash/go-tempfile-suffix v0.0.0-20150731093933-48f0f8a3a5ab
 	github.com/matryer/is v1.2.0 // indirect
-	github.com/mattn/go-colorable v0.0.9 // indirect
-	github.com/mattn/go-isatty v0.0.3 // indirect
-	github.com/mattn/go-runewidth v0.0.4 // indirect
-	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
+	github.com/mattn/go-tty v0.0.3 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v0.0.0-20180203102830-a4e142e9c047 // indirect
 	github.com/nicksnyder/go-i18n v1.10.0
 	github.com/nwaples/rardecode v0.0.0-20171029023500-e06696f847ae // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/pelletier/go-toml v1.1.0 // indirect
+	github.com/peterh/liner v1.2.0
 	github.com/phayes/permbits v0.0.0-20190108233746-1efae4548023
 	github.com/pierrec/lz4 v0.0.0-20190222153722-062282ea0dcf // indirect
 	github.com/pkg/errors v0.8.1
+	github.com/pkg/term v0.0.0-20200520122047-c3ffed290a03 // indirect
 	github.com/posener/wstest v0.0.0-20180216222922-04b166ca0bf1
 	github.com/rollbar/rollbar-go v1.1.0
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
