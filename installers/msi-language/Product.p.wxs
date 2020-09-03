@@ -98,6 +98,8 @@
 			<TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
 			<TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
 
+			<Error Id="1603">Some error text</Error>
+
 			<Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
 			<Property Id="WixUI_Mode" Value="InstallDir" />
 
@@ -175,16 +177,16 @@
 		<CustomAction Id='LaunchReleaseNotes' Execute="immediate" Directory="INSTALLDIR" ExeCommand="explorer.exe [REL_NOTES]" Impersonate="yes" Return="asyncNoWait" />
 		<CustomAction Id='InstallVSCodeExt' Execute="immediate" Directory="INSTALLDIR" ExeCommand="cmd.exe /c &quot;[CODE_PATH]&quot; --install-extension ActiveState.activestate-platform" Impersonate="yes" Return="asyncNoWait" />
 
-
 		<UIRef Id="WixUI_Common" />
 		<UIRef Id="CustomUI_PrivacyConsent" />
 
 		<Property Id="IS_MODIFY" Value="false" Secure="yes"/>
 
 		<InstallUISequence>
-			<Custom Action="CommandsExist" After="CostFinalize">NOT REMOVE~="ALL"</Custom>
 			<Custom Action="SetSessionID" After="CostFinalize">1</Custom>
 			<Custom Action="GAReportStart" After="SetSessionID">NOT REMOVE~="ALL"</Custom>
+			<Custom Action="UICheck" After="GAReportStart">NOT REMOVE~="ALL"</Custom>
+			<Custom Action="CommandsExist" After="UICheck">NOT REMOVE~="ALL"</Custom>
 			<Custom Action="SetIsModify" After="CommandsExist">(Installed AND NOT (REMOVE~="ALL"))</Custom>
 			<Custom Action="SetInstallDirOnModify" After="SetIsModify">(Installed AND NOT (REMOVE~="ALL"))</Custom>
 		</InstallUISequence>
@@ -203,6 +205,9 @@
 		<CustomAction Id="SetUninstallProperties" Property="Uninstall" Value="PRESET=[PRESET];REMEMBER=[REMEMBER];REMEMBER_SHORTCUTDIR=[REMEMBER_SHORTCUTDIR];COMMIT_ID=[COMMIT_ID];MsiLogFileLocation=[MsiLogFileLocation];PRIVACY_ACCEPTED=[PRIVACY_ACCEPTED]" />
 		<CustomAction Id="SetPresetInfo" Property="Preset" Value="REL_NOTES=[REL_NOTES];INSTALLDIR=[INSTALLDIR];APP_START_MENU_PATH=[ApplicationProgramsFolder];PRESET=[PRESET];COMMIT_ID=[COMMIT_ID];MsiLogFileLocation=[MsiLogFileLocation];PRIVACY_ACCEPTED=[PRIVACY_ACCEPTED]" />
 		<CustomAction Id="SetRollbackPropertyValues" Property="Rollback" Value="STATE_TOOL_INSTALLED=[STATE_TOOL_INSTALLED];INSTALLDIR=[INSTALLDIR];COMMIT_ID=[COMMIT_ID];MsiLogFileLocation=[MsiLogFileLocation];PRIVACY_ACCEPTED=[PRIVACY_ACCEPTED]" />
+
+		<Binary Id="UICheckCA" SourceFile="$(var.UICheck.TargetDir)$(var.UICheck.TargetName).CA.dll" />
+		<CustomAction Id="UICheck" Impersonate="yes" BinaryKey="UICheckCA" DllEntry="Level" Execute="immediate" Return="check" />
 
 		<Binary Id="GAPixelCA" SourceFile="$(var.GAPixel.TargetDir)$(var.GAPixel.TargetName).CA.dll" />
 		<CustomAction Id="GAPixel" Impersonate="yes" BinaryKey="GAPixelCA" DllEntry="SendPixel" Return="ignore" />
@@ -233,7 +238,8 @@
 		<CustomAction Id="Uninstall" Impersonate="no" BinaryKey="UninstallCA" DllEntry="Uninstall" Execute="deferred" Return="check" />
 
 		<InstallExecuteSequence>
-			<Custom Action="Status" After="InstallInitialize">NOT REMOVE~="ALL"</Custom>
+			<Custom Action="UICheck" After="InstallInitialize">NOT REMOVE~="ALL"</Custom>
+			<Custom Action="Status" After="UICheck">NOT REMOVE~="ALL"</Custom>
 			<Custom Action="SetRollbackPropertyValues" After="Status">NOT REMOVE~="ALL"</Custom>
 			<Custom Action="SetStateDeployPropertyValues" After="SetRollbackPropertyValues">NOT REMOVE~="ALL"</Custom>
 			<Custom Action="Rollback" After="SetStateDeployPropertyValues">NOT REMOVE~="ALL"</Custom>

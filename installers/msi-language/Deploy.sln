@@ -32,6 +32,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UICheck", "UICheck\UICheck.csproj", "{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -111,6 +113,13 @@ Global
 		{1D21E2BC-C88C-4578-9FF1-3663DB6DD4CB}.Release|x64.Build.0 = Release|x64
 		{1D21E2BC-C88C-4578-9FF1-3663DB6DD4CB}.Release|x86.ActiveCfg = Release|x86
 		{1D21E2BC-C88C-4578-9FF1-3663DB6DD4CB}.Release|x86.Build.0 = Release|x86
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Debug|x64.ActiveCfg = Debug|x86
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Debug|x86.ActiveCfg = Debug|x86
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Debug|x86.Build.0 = Debug|x86
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Release|x64.ActiveCfg = Release|x64
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Release|x64.Build.0 = Release|x64
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Release|x86.ActiveCfg = Release|x86
+		{9BAAACD8-6EE4-4423-BC31-510AE8B4817F}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
