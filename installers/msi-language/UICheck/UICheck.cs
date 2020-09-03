@@ -28,10 +28,12 @@ namespace UICheck
             session.Log("UI level is: {0}", level);
             if (level < 5)
             {
+                // Report this event to GA
+                session.DoAction("GAReportUserUI");
+
                 // Present message to user
                 Record record = new Record();
                 record.FormatString = string.Format("Installation not suppored for reduced UI Modes. Please run installer again with full UI");
-
                 session.Message(InstallMessage.Error | (InstallMessage)MessageBoxButtons.OK, record);
                 return ActionResult.Failure;
             }

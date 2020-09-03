@@ -578,6 +578,17 @@ namespace StateDeploy
             return ActionResult.Success;
         }
 
+        /// <summary>
+        /// Reports a user network UI event to google analytics
+        /// </summary>
+        [CustomAction]
+        public static ActionResult GAReportUserUI(Session session)
+        {
+            session.Log("sending user network UI event");
+            TrackerSingleton.Instance.TrackEventSynchronously(session, session["SESSION_ID"], "stage", "finished", "user_ui", session["ProductVersion"]);
+            return ActionResult.Success;
+        }
+
         [CustomAction]
         public static ActionResult ValidateInstallFolder(Session session)
         {
