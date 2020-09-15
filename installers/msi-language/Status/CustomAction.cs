@@ -1,4 +1,5 @@
 using Microsoft.Deployment.WindowsInstaller;
+using System.Threading;
 
 namespace Status
 {
@@ -50,7 +51,7 @@ namespace Status
 
     public class ProgressBar
     {
-        public static string ticksString = "4";
+        public static string ticksString = "10000";
         public static int ticks = 10000;
 
         public static ActionResult Reset(Session session)
@@ -75,17 +76,27 @@ namespace Status
             return session.Message(InstallMessage.ActionStart, record);
         }
 
-        public static MessageResult Increment(Session session, int progressTicks)
+        public static MessageResult Increment(Session session, CancellationToken ct)
         {
-            if (progressTicks > 0)
+            if (ct.IsCancellationRequested)
             {
-                session.Log(string.Format("increment by {0}", progressTicks));
+                ct.ThrowIfCancellationRequested();
             }
+            return Increment(session, 1);
+        }
+
+        public static MessageResult Increment(Session session, int increment)
+        {
             var record = new Record(3);
             record[1] = 2; // "ProgressReport" message 
-            record[2] = progressTicks.ToString(); // ticks to increment 
+            record[2] = increment.ToString(); // ticks to increment 
             record[3] = 0; // ignore 
             return session.Message(InstallMessage.Progress, record);
+        }
+
+        public static MessageResult Increment(Session session)
+        {
+            return Increment(session, 1);
         }
     }
 }

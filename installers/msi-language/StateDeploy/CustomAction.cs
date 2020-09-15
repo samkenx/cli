@@ -6,13 +6,13 @@ using System.Net;
 using System.Collections.ObjectModel;
 using System.Windows.Forms;
 using System.Linq;
-using System.Web.Script.Serialization;
-using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Security.Cryptography;
 using System.IO.Compression;
 using ActiveState;
 using Microsoft.Win32;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace StateDeploy
 {
@@ -54,7 +54,7 @@ namespace StateDeploy
             return paths;
         }
 
-        private static ActionResult _installStateTool(Session session, out string stateToolPath)
+        private static (ActionResult, string) _installStateTool(Session session)
         {
             Error.ResetErrorDetails(session);
 
@@ -64,12 +64,12 @@ namespace StateDeploy
             string timeStamp = DateTime.Now.ToFileTime().ToString();
             string tempDir = Path.Combine(Path.GetTempPath(), timeStamp);
             string stateToolInstallDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ActiveState", "bin");
-            stateToolPath = Path.Combine(stateToolInstallDir, "state.exe");
+            string stateToolPath = Path.Combine(stateToolInstallDir, "state.exe");
 
             if (File.Exists(stateToolPath))
             {
                 session.Log("Using existing State Tool executable at install path");
-                return ActionResult.Success;
+                return (ActionResult.Success, stateToolPath);
             }
 
             session.Log(string.Format("Using temp path: {0}", tempDir));
@@ -82,7 +82,7 @@ namespace StateDeploy
                 string msg = string.Format("Could not create temp directory at: {0}, encountered exception: {1}", tempDir, e.ToString());
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
@@ -102,7 +102,7 @@ namespace StateDeploy
                 string msg = string.Format("Encountered exception downloading state tool json info file: {0}", e.ToString());
                 session.Log(msg);
                 new NetworkError().SetDetails(session, e.Message);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             VersionInfo info;
@@ -115,7 +115,7 @@ namespace StateDeploy
                 string msg = string.Format("Could not deserialize version info. Version info string {0}, exception {1}", versionInfoString, e.ToString());
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             string zipPath = Path.Combine(tempDir, paths.ZipFile);
@@ -135,7 +135,7 @@ namespace StateDeploy
                 string msg = string.Format("Encountered exception downloading state tool zip file. URL to zip file: {0}, path to save zip file to: {1}, exception: {2}", zipURL, zipPath, e.ToString());
                 session.Log(msg);
                 new NetworkError().SetDetails(session, e.Message);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             SHA256 sha = SHA256.Create();
@@ -146,7 +146,7 @@ namespace StateDeploy
                 string msg = string.Format("SHA256 checksum did not match, expected: {0} actual: {1}", info.sha256v2, zipHash.ToString());
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             Status.ProgressBar.StatusMessage(session, "Extracting State Tool executable...");
@@ -159,7 +159,7 @@ namespace StateDeploy
                 string msg = string.Format("Could not extract State Tool, encountered exception. Path to zip file: {0}, path to temp directory: {1}, exception {2})", zipPath, tempDir, e);
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             try
@@ -171,7 +171,7 @@ namespace StateDeploy
                 string msg = string.Format("Could not create State Tool install directory at: {0}, encountered exception: {1}", stateToolInstallDir, e.ToString());
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
             try
@@ -183,7 +183,7 @@ namespace StateDeploy
                 string msg = string.Format("Could not move State Tool executable to: {0}, encountered exception: {1}", stateToolPath, e);
                 session.Log(msg);
                 RollbarReport.Critical(msg, session);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
 
@@ -223,7 +223,7 @@ namespace StateDeploy
             if (oldPath.Contains(stateToolInstallDir))
             {
                 session.Log("State tool installation already on PATH");
-                return ActionResult.Success;
+                return (ActionResult.Success, stateToolPath);
             }
 
             var newPath = string.Format("{0};{1}", stateToolInstallDir, oldPath);
@@ -237,11 +237,13 @@ namespace StateDeploy
                 string msg = string.Format("Could not update PATH. Encountered exception: {0}", e.Message);
                 session.Log(msg);
                 new SecurityError().SetDetails(session, msg);
-                return ActionResult.Failure;
+                return (ActionResult.Failure, stateToolPath);
             }
 
-            return ActionResult.Success;
+            return (ActionResult.Success, stateToolPath);
         }
+
+        public delegate ActionResult OutAction<T1, T2>(Session session, out string stateToolPath);
 
         public static ActionResult InstallStateTool(Session session, string msiLogFileName, out string stateToolPath)
         {
@@ -253,25 +255,43 @@ namespace StateDeploy
             {
                 stateToolPath = session.CustomActionData["STATE_TOOL_PATH"];
                 session.Log("State Tool is installed, no installation required");
-                Status.ProgressBar.Increment(session, 1);
+                Status.ProgressBar.Increment(session);
                 TrackerSingleton.Instance.TrackEventSynchronously(session, msiLogFileName, "stage", "state-tool", "skipped", productVersion);
 
                 return ActionResult.Success;
             }
 
             Status.ProgressBar.StatusMessage(session, "Installing State Tool...");
-            Status.ProgressBar.Increment(session, 1);
 
-            var ret = _installStateTool(session, out stateToolPath);
-            if (ret == ActionResult.Success)
+            var tokenSource = new CancellationTokenSource();
+            var token = tokenSource.Token;
+            Task incrementTask = Task.Run(() => IncrementProgressBar(session, 2500, token));
+            Task<(ActionResult, string)> runTask = Task.Run(() => _installStateTool(session));
+
+            try
+            {
+                incrementTask.Wait();
+            }
+            catch (OperationCanceledException)
+            {
+                session.Log("Increment progress bar cancelled");
+            }
+
+            ActionResult result = runTask.Result.Item1;
+            tokenSource.Cancel();
+
+            var ret = _installStateTool(session);
+            if (ret.Item1 == ActionResult.Success)
             {
                 TrackerSingleton.Instance.TrackEventSynchronously(session, msiLogFileName, "stage", "state-tool", "success", productVersion);
             }
-            else if (ret == ActionResult.Failure)
+            else if (ret.Item1 == ActionResult.Failure)
             {
                 TrackerSingleton.Instance.TrackEventSynchronously(session, msiLogFileName, "stage", "state-tool", "failure", productVersion);
             }
-            return ret;
+            tokenSource.Cancel();
+            stateToolPath = ret.Item2;
+            return ret.Item1;
         }
 
         private static ActionResult Login(Session session, string stateToolPath)
@@ -396,7 +416,7 @@ namespace StateDeploy
                     string deployCmd = BuildDeployCmd(session, seq.SubCommand);
                     session.Log(string.Format("Executing deploy command: {0}", deployCmd));
 
-                    Status.ProgressBar.Increment(session, 1);
+                    Status.ProgressBar.Increment(session);
                     Status.ProgressBar.StatusMessage(session, seq.Description);
 
                     string output;
@@ -404,6 +424,7 @@ namespace StateDeploy
                     if (runResult.Equals(ActionResult.UserExit))
                     {
                         // Catch cancel and return
+                        session.Log("Caught cancel");
                         return runResult;
                     }
                     else if (runResult == ActionResult.Failure)
@@ -428,7 +449,7 @@ namespace StateDeploy
                 return ActionResult.Failure;
             }
 
-            Status.ProgressBar.Increment(session, 1);
+            Status.ProgressBar.Increment(session);
             return ActionResult.Success;
 
         }
@@ -438,7 +459,43 @@ namespace StateDeploy
         public static ActionResult StateDeploy(Session session)
         {
             ActiveState.RollbarHelper.ConfigureRollbarSingleton(session.CustomActionData["MSI_VERSION"]);
-            return run(session);
+
+            var tokenSource = new CancellationTokenSource();
+            var token = tokenSource.Token;
+            Task incrementTask = Task.Run(() => IncrementProgressBar(session, 7000, token));
+            Task<ActionResult> runTask = Task.Run(() => run(session));
+
+            try
+            {
+                incrementTask.Wait();
+            } catch (OperationCanceledException)
+            {
+                session.Log("Increment progress bar cancelled");
+            }
+
+            ActionResult result = runTask.Result;
+            tokenSource.Cancel();
+            return result;
+        }
+
+        private static void IncrementProgressBar(Session session, int limit, CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                session.Log("IncrementProgressBar cancelled before it could start");
+                ct.ThrowIfCancellationRequested();
+            }
+            
+            for (int i = 0; i <= limit; i++)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    //int remainder = limit - i;
+                    //Status.ProgressBar.Increment(session, remainder);
+                    ct.ThrowIfCancellationRequested();
+                }
+                Status.ProgressBar.Increment(session, ct);
+            }
         }
 
         private static string BuildDeployCmd(Session session, string subCommand)
