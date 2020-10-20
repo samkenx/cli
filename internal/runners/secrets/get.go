@@ -86,7 +86,7 @@ func (d *getOutput) MarshalOutput(format output.Format) interface{} {
 
 	switch format {
 	case output.JSONFormatName, output.EditorV0FormatName, output.EditorFormatName:
-		return &SecretExport{
+		return &SecretGetExport{
 			d.secret.Name(),
 			d.secret.Scope(),
 			d.secret.Description(),
@@ -108,4 +108,14 @@ func newValuePtrIsNilError(reqSecret string, isUser bool) error {
 	}
 
 	return locale.NewError(l10nKey, l10nVal, reqSecret)
+}
+
+// SecretGetExport defines important information about a secret that should be
+// displayed.
+type SecretGetExport struct {
+	Name        string `json:"name"`
+	Scope       string `json:"scope"`
+	Description string `json:"description"`
+	HasValue    bool   `json:"has_value"`
+	Value       string `json:"value,omitempty"`
 }
