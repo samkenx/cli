@@ -1341,8 +1341,14 @@ err_main_outputer:
   other: "Could not create output writer, please contact developers if this problem persists. Error: {{.V0}}"
 field_name:
   other: Name
+field_scope:
+  other: Scope
+field_value:
+  other: Value
 field_description:
   other: Description
+field_usage:
+  other: Usage
 field_organization:
   other: Organization
 request_timed_out:

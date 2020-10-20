@@ -1,7 +1,6 @@
 package secrets
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/ActiveState/cli/internal/access"
@@ -14,7 +13,6 @@ import (
 	secretsapi "github.com/ActiveState/cli/pkg/platform/api/secrets"
 	secretsModels "github.com/ActiveState/cli/pkg/platform/api/secrets/secrets_models"
 	"github.com/ActiveState/cli/pkg/project"
-	"github.com/bndr/gotabulate"
 )
 
 type listPrimeable interface {
@@ -53,12 +51,13 @@ func (l *List) Run(params ListRunParams) error {
 	if fail != nil {
 		return locale.WrapError(fail, "secrets_err_defined")
 	}
+
 	exports, fail := defsToSecrets(defs)
 	if fail != nil {
 		return locale.WrapError(fail, "secrets_err_values")
 	}
 
-	l.out.Print(secretExports(exports))
+	l.out.Print(exports)
 
 	return nil
 }
@@ -116,30 +115,8 @@ func filterSecrets(proj *project.Project, secrectDefs []*secretsModels.SecretDef
 	return secrectDefsFiltered
 }
 
-type secretExports []*SecretExport
-
-func (es secretExports) MarshalOutput(format output.Format) interface{} {
-	switch format {
-	case output.JSONFormatName, output.EditorV0FormatName, output.EditorFormatName:
-		return es
-
-	default:
-		rows, fail := secretsToRows(es)
-		if fail != nil {
-			return fail.WithDescription(locale.T("secrets_err_output"))
-		}
-
-		t := gotabulate.Create(rows)
-		t.SetHeaders([]string{locale.T("secrets_header_name"), locale.T("secrets_header_scope"), locale.T("secrets_header_value"), locale.T("secrets_header_description"), locale.T("secrets_header_usage")})
-		t.SetHideLines([]string{"betweenLine", "top", "aboveTitle", "LineTop", "LineBottom", "bottomLine"}) // Don't print whitespace lines
-		t.SetAlign("left")
-
-		return t.Render("simple")
-	}
-}
-
-func defsToSecrets(defs []*secretsModels.SecretDefinition) ([]*SecretExport, *failures.Failure) {
-	secretsExport := make([]*SecretExport, len(defs))
+func defsToSecrets(defs []*secretsModels.SecretDefinition) ([]*SecretListExport, *failures.Failure) {
+	secretsExport := make([]*SecretListExport, len(defs))
 	expander := project.NewSecretExpander(secretsapi.Get(), project.Get())
 
 	for i, def := range defs {
@@ -153,53 +130,39 @@ func defsToSecrets(defs []*secretsModels.SecretDefinition) ([]*SecretExport, *fa
 			return secretsExport, fail
 		}
 
-		secretsExport[i] = &SecretExport{
+		desc := "-"
+		if def.Description != "" {
+			desc = def.Description
+		}
+
+		defStatus := locale.T("secrets_row_value_unset")
+		if secretValue != nil && secretValue.Value != nil {
+			defStatus = locale.T("secrets_row_value_set")
+		}
+
+		secretsExport[i] = &SecretListExport{
 			Name:        *def.Name,
 			Scope:       *def.Scope,
-			Description: def.Description,
-			HasValue:    secretValue != nil,
+			Value:       defStatus,
+			Description: desc,
+			Usage:       *def.Scope + "." + *def.Name,
 		}
 	}
 
 	return secretsExport, nil
 }
 
-func secretsAsJSON(secretExports []*SecretExport) ([]byte, *failures.Failure) {
-	bs, err := json.Marshal(secretExports)
-	if err != nil {
-		return nil, failures.FailMarshal.Wrap(err)
-	}
-
-	return bs, nil
-}
-
-// secretsToRows returns the rows used in our output table
-func secretsToRows(secretExports []*SecretExport) ([][]interface{}, *failures.Failure) {
-	rows := [][]interface{}{}
-	for _, secret := range secretExports {
-		description := "-"
-		if secret.Description != "" {
-			description = secret.Description
-		}
-		hasValue := locale.T("secrets_row_value_set")
-		if !secret.HasValue {
-			hasValue = locale.T("secrets_row_value_unset")
-		}
-		rows = append(rows, []interface{}{secret.Name, secret.Scope, hasValue, description, fmt.Sprintf("%s.%s", secret.Scope, secret.Name)})
-	}
-	return rows, nil
-}
-
-func ptrToString(s *string, fieldName string) (string, *failures.Failure) {
-	if s == nil {
-		return "", failures.FailVerify.New("secrets_err_missing_field", fieldName)
-	}
-	return *s, nil
-}
-
-// SecretExport defines important information about a secret that should be
+// SecretListExport defines important information about a secret that should be
 // displayed.
-type SecretExport struct {
+type SecretListExport struct {
+	Name        string `json:"name"`
+	Scope       string `json:"scope"`
+	Value       string `json:"value"` // AKA "Definition Status - Defined/Undefined"
+	Description string `json:"description"`
+	Usage       string `json:"usage"`
+}
+
+type xSecretGetExport struct {
 	Name        string `json:"name"`
 	Scope       string `json:"scope"`
 	Description string `json:"description"`
